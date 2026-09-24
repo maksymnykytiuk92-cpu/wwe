@@ -23,6 +23,7 @@ from catalog import (
     STATUS_MAP, STATUS_NAME_TO_ID, networks_for, commission_for,
 )
 from hd_wallet import generate_mnemonic, seed_from_mnemonic, derive_address
+from wallet_crypto import encrypt_mnemonic, decrypt_mnemonic
 from admin_router import (
     admin_router, sec_router,
     get_platform_settings, add_to_pool, is_network_enabled, check_user_2fa,
@@ -60,14 +61,23 @@ async def ensure_seed():
         mnemonic = env_m
     else:
         sysdoc = await db.system.find_one({"_id": "wallet"})
-        if sysdoc and sysdoc.get("mnemonic"):
+        if sysdoc and sysdoc.get("mnemonic_enc"):
+            # Основний шлях: зашифрований мнемонік у БД
+            mnemonic = decrypt_mnemonic(sysdoc["mnemonic_enc"])
+        elif sysdoc and sysdoc.get("mnemonic"):
+            # Міграція legacy: був відкритий мнемонік → шифруємо й прибираємо plaintext
             mnemonic = sysdoc["mnemonic"]
+            await db.system.update_one(
+                {"_id": "wallet"},
+                {"$set": {"mnemonic_enc": encrypt_mnemonic(mnemonic)},
+                 "$unset": {"mnemonic": ""}})
+            logger.warning("Migrated plaintext mnemonic in DB to encrypted (mnemonic_enc).")
         else:
             mnemonic = generate_mnemonic()
-            await db.system.update_one({"_id": "wallet"},
-                                       {"$set": {"mnemonic": mnemonic}}, upsert=True)
-            logger.warning("Generated new HD wallet mnemonic (stored in DB). "
-                           "Set WALLET_MNEMONIC in .env for production.")
+            await db.system.update_one(
+                {"_id": "wallet"},
+                {"$set": {"mnemonic_enc": encrypt_mnemonic(mnemonic)}}, upsert=True)
+            logger.warning("Generated new HD wallet mnemonic (encrypted in DB).")
     _seed["bytes"] = seed_from_mnemonic(mnemonic)
 
 
