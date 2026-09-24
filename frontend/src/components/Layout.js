@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Wallet, Receipt, Users, Settings, LogOut,
-  ChevronDown, MessageCircle, Menu, X, ShieldCheck,
+  ChevronDown, Menu, X, ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useLang } from "@/lib/i18n";
@@ -110,11 +110,6 @@ export default function Layout({ children }) {
 
         <main className="min-h-[calc(100vh-4rem)] w-full min-w-0 flex-1 overflow-x-hidden p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
-
-      {/* Support bubble */}
-      <button data-testid="support-bubble" className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-xl transition-transform hover:scale-110">
-        <MessageCircle className="h-6 w-6" />
-      </button>
     </div>
   );
 }
