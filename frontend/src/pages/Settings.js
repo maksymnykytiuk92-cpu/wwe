@@ -325,6 +325,9 @@ function PlatformTab({ user }) {
     try {
       const { data } = await api.put("/admin/platform-fees", {
         deposit_fee: Number(pf.deposit_fee),
+        deposit_fee_by_iso: Object.fromEntries(
+          Object.entries(pf.deposit_fee_by_iso || {}).map(([k, v]) => [k, Number(v)])
+        ),
         withdrawal_fee_cabinet: Number(pf.withdrawal_fee_cabinet),
         withdrawal_fee_api: Number(pf.withdrawal_fee_api),
         otp: otp || undefined,
@@ -362,9 +365,24 @@ function PlatformTab({ user }) {
       <div className="rounded-2xl border border-slate-100 p-5 space-y-4">
         <div className="text-lg font-bold text-slate-900">Комісії</div>
         <div>
-          <Label className="text-slate-700 font-semibold">Комісія на вхід (депозит) — {pf.deposit_fee} USDT (flat)</Label>
-          <Input data-testid="pf-deposit" type="number" step="0.01" value={pf.deposit_fee} onChange={(e) => setPf({ ...pf, deposit_fee: e.target.value })} className="rounded-xl mt-1 max-w-xs" />
-          <p className="text-xs text-slate-400 mt-1">Приклад: при 0.5 USDT — якщо відправник надіслав 10 USDT, на баланс одержувача зараховується 9.5 USDT, а 0.5 йде в пул платформи.</p>
+          <Label className="text-slate-700 font-semibold">Комісія на вхід (депозит) — окремо для кожної валюти</Label>
+          <p className="text-xs text-slate-400 mt-1 mb-3">Комісія списується з вхідної суми в одиницях самої валюти. Приклад: якщо для USDT задано 0.5 і відправник надіслав 10 USDT, одержувачу зараховується 9.5 USDT, а 0.5 йде в пул платформи.</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {Object.keys(pf.deposit_fee_by_iso || {}).map((iso) => (
+              <div key={iso}>
+                <Label className="text-xs font-semibold text-slate-600">{iso}</Label>
+                <Input
+                  data-testid={`pf-deposit-${iso}`}
+                  type="number"
+                  step="any"
+                  min="0"
+                  value={pf.deposit_fee_by_iso[iso]}
+                  onChange={(e) => setPf({ ...pf, deposit_fee_by_iso: { ...pf.deposit_fee_by_iso, [iso]: e.target.value } })}
+                  className="rounded-xl mt-1"
+                />
+              </div>
+            ))}
+          </div>
         </div>
         <div>
           <Label className="text-slate-700 font-semibold">Комісія на вивід (з особистого кабінету)</Label>

@@ -16,7 +16,7 @@ from fastapi import APIRouter, HTTPException, Request, Body
 from pydantic import BaseModel
 
 from core import db, get_current_user
-from catalog import NETWORKS
+from catalog import NETWORKS, CURRENCIES
 
 logger = logging.getLogger("okipays.admin")
 
@@ -28,7 +28,13 @@ sec_router = APIRouter(prefix="/api/security")
 # ---------------------------------------------------------------------------
 DEFAULT_PLATFORM = {
     "_id": "platform_settings",
-    "deposit_fee": 0.5,               # flat, deducted from incoming amount (in the incoming currency units, e.g. USDT)
+    "deposit_fee": 0.5,               # legacy global fallback (in incoming currency units)
+    # per-currency deposit fee (in the units of the incoming currency)
+    "deposit_fee_by_iso": {
+        "USDT": 0.5, "USDC": 0.5,
+        "BTC": 0.00001, "ETH": 0.0002, "BNB": 0.001,
+        "TRX": 1.0, "SOL": 0.005, "LTC": 0.005,
+    },
     "withdrawal_fee_cabinet": 1.0,    # flat, added on top of user amount for direct-cabinet withdrawals
     "withdrawal_fee_api": 0.8,        # flat, for API-driven withdrawals (merchant integrations)
     # pool broken down by iso -> network_id -> amount (so we know which chain the funds sit on)
@@ -71,6 +77,20 @@ async def update_platform_settings(patch: dict) -> dict:
     await db.system.update_one({"_id": "platform_settings"},
                                {"$set": patch}, upsert=True)
     return await get_platform_settings()
+
+
+def deposit_fee_for(settings: dict, iso: str) -> float:
+    """Комісія платформи на вхід (депозит) для конкретної валюти.
+    Якщо для валюти окремо не задано — використовує глобальне значення deposit_fee."""
+    iso = (iso or "").upper()
+    by = settings.get("deposit_fee_by_iso") or {}
+    val = by.get(iso)
+    if val is not None:
+        try:
+            return float(val)
+        except (TypeError, ValueError):
+            pass
+    return float(settings.get("deposit_fee") or 0.0)
 
 
 async def add_to_pool(iso: str, amount: float, network_id=None):
@@ -144,6 +164,7 @@ async def _require_superadmin(request: Request) -> dict:
 # ---------------------------------------------------------------------------
 class PlatformFeesIn(BaseModel):
     deposit_fee: Optional[float] = None
+    deposit_fee_by_iso: Optional[dict] = None
     withdrawal_fee_cabinet: Optional[float] = None
     withdrawal_fee_api: Optional[float] = None
     otp: Optional[str] = None
@@ -169,6 +190,21 @@ async def platform_fees_put(request: Request, payload: PlatformFeesIn):
         if payload.deposit_fee < 0:
             raise HTTPException(400, "Комісія не може бути від'ємною")
         patch["deposit_fee"] = float(payload.deposit_fee)
+    if payload.deposit_fee_by_iso is not None:
+        cur = await get_platform_settings()
+        merged = dict(cur.get("deposit_fee_by_iso") or {})
+        for iso, val in payload.deposit_fee_by_iso.items():
+            iso = str(iso).upper()
+            if iso not in CURRENCIES:
+                raise HTTPException(400, f"Невідома валюта: {iso}")
+            try:
+                fval = float(val)
+            except (TypeError, ValueError):
+                raise HTTPException(400, f"Некоректна комісія для {iso}")
+            if fval < 0:
+                raise HTTPException(400, "Комісія не може бути від'ємною")
+            merged[iso] = fval
+        patch["deposit_fee_by_iso"] = merged
     if payload.withdrawal_fee_cabinet is not None:
         if payload.withdrawal_fee_cabinet < 0:
             raise HTTPException(400, "Комісія не може бути від'ємною")
@@ -189,6 +225,7 @@ async def platform_fees_public(request: Request):
     s = await get_platform_settings()
     return {"status": True, "data": {
         "deposit_fee": s["deposit_fee"],
+        "deposit_fee_by_iso": s.get("deposit_fee_by_iso", {}),
         "withdrawal_fee_cabinet": s["withdrawal_fee_cabinet"],
         "withdrawal_fee_api": s["withdrawal_fee_api"],
     }}

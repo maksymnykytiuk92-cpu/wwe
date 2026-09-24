@@ -27,6 +27,7 @@ from wallet_crypto import encrypt_mnemonic, decrypt_mnemonic
 from admin_router import (
     admin_router, sec_router,
     get_platform_settings, add_to_pool, is_network_enabled, check_user_2fa,
+    deposit_fee_for,
 )
 import aml as aml_mod
 import binance_prices
@@ -380,7 +381,7 @@ async def deposit_address(request: Request, payload: DepositAddrIn):
     plat = await get_platform_settings()
     return {"status": True, "data": {"address": addr["address"], "currency": iso,
             "network_id": payload.network_id, "network": net["name"], "network_iso": net["iso"],
-            "platform_deposit_fee": plat["deposit_fee"]}}
+            "platform_deposit_fee": deposit_fee_for(plat, iso)}}
 
 
 class WithdrawIn(BaseModel):
@@ -661,7 +662,7 @@ async def checkout_select(inv_id: str, payload: CheckoutSelectIn):
     merchant_fee = amount * infee["percent"] / 100 + infee["fixed"]
     # Include platform deposit fee in the amount the payer must send so recipient credit stays whole
     plat = await get_platform_settings()
-    platform_fee = float(plat.get("deposit_fee") or 0.0)
+    platform_fee = deposit_fee_for(plat, iso)
     amount_to_pay = amount + merchant_fee + platform_fee
     net = NETWORKS[payload.network_id]
     pay_info = {"amount": round(amount, 8), "merchant_fee": round(merchant_fee, 8),
@@ -870,7 +871,7 @@ async def merchant_pay_in(request: Request):
     merchant_fee = amount * infee["percent"] / 100 + infee["fixed"]
     # Include platform fee so the recipient credit stays whole after platform deducts it
     plat = await get_platform_settings()
-    platform_fee = float(plat.get("deposit_fee") or 0.0)
+    platform_fee = deposit_fee_for(plat, iso)
     amount_to_pay = amount + merchant_fee + platform_fee
     net = NETWORKS[nid]
     pay_info = {"commission": round(merchant_fee + platform_fee, 8),
@@ -1037,7 +1038,7 @@ async def _confirm_payment(inv, iso, nid, amount, address, status, sid, from_add
     review_hold = aml_result.get("action") == "REVIEW"
     # Deduct platform deposit fee (e.g. 0.5 USDT flat) from the incoming amount.
     plat = await get_platform_settings()
-    plat_fee = float(plat.get("deposit_fee") or 0.0)
+    plat_fee = deposit_fee_for(plat, iso)
     net_amount = max(0.0, round(float(amount) - plat_fee, 8))
     fee_applied = round(float(amount) - net_amount, 8)
     if not review_hold:
