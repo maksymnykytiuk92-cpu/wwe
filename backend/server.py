@@ -29,6 +29,7 @@ from admin_router import (
     get_platform_settings, add_to_pool, is_network_enabled, check_user_2fa,
 )
 import aml as aml_mod
+import binance_prices
 import uuid
 
 logging.basicConfig(level=logging.INFO)
@@ -1195,6 +1196,7 @@ async def startup():
     asyncio.create_task(expire_worker())
     asyncio.create_task(deposit_worker())
     asyncio.create_task(aml_mod.aml_refresh_worker())
+    asyncio.create_task(binance_prices.price_worker())
 
 
 @app.on_event("shutdown")
