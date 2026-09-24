@@ -157,11 +157,22 @@ frontend:
       - working: true
         agent: "main"
         comment: "Root cause: useEffect(load, []) returned a Promise which React 19 tried to invoke as cleanup. Fixed with useEffect(() => { load(); }, [])."
+  - task: "Dashboard — hide balance eye icon toggle"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/Dashboard.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Verified via Playwright: Eye icon toggle (data-testid='toggle-balance') correctly hides/shows both total balance and available amount. Initial state shows $0.00, clicking toggles to ••••••, icon changes from Eye to EyeOff (aria-label 'Показати баланс'), clicking again restores $0.00 and Eye icon (aria-label 'Приховати баланс'). All 10 test steps PASSED."
 
 metadata:
   created_by: "main_agent"
-  version: "1.1"
-  test_sequence: 0
+  version: "1.2"
+  test_sequence: 1
   run_ui: true
 
 test_plan:
@@ -201,3 +212,25 @@ agent_communication:
       Minor observation: Two 401 responses on /api/auth/me (expected auth flow behavior, not a bug)
       
       The app now works correctly over the external preview URL. Ready for comprehensive feature testing of the 4 new features (fee settings, network toggles, 2FA, AML).
+  - agent: "testing"
+    message: |
+      ✅ "Hide balance eye icon" bug verification COMPLETE - BUG IS FIXED
+      
+      Tested external URL: https://tuzsd-repo.preview.emergentagent.com/dashboard
+      Test credentials: admin@tuzsd.com / admin123
+      
+      All test steps PASSED:
+      1. ✅ Login successful, redirected to /dashboard
+      2. ✅ Balance card loaded with "Загальний баланс" label and eye icon (data-testid="toggle-balance")
+      3. ✅ Initial state: Total balance shows "$0.00" (visible, NOT masked)
+      4. ✅ Initial state: Available amount shows "Доступно • $0.00" (visible, NOT masked)
+      5. ✅ After clicking eye icon: Total balance shows "••••••" (MASKED correctly)
+      6. ✅ After clicking eye icon: Available amount shows "Доступно • ••••••" (MASKED correctly)
+      7. ✅ Icon changed to EyeOff (crossed-out eye) - aria-label changed to "Показати баланс"
+      8. ✅ After clicking again: Total balance shows "$0.00" (visible again)
+      9. ✅ After clicking again: Available amount shows "Доступно • $0.00" (visible again)
+      10. ✅ Icon changed back to Eye - aria-label changed to "Приховати баланс"
+      
+      Screenshots captured: balance_visible_initial.png, balance_hidden.png, balance_visible_final.png
+      
+      The eye icon toggle functionality works perfectly. Both the total balance and available amount are correctly masked/unmasked together, and the icon properly switches between Eye and EyeOff states.

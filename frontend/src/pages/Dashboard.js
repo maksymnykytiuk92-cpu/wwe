@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
-import { Download, Upload, RefreshCw, Eye, Plus, ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { Download, Upload, RefreshCw, Eye, EyeOff, Plus, ArrowUpRight, ArrowDownLeft } from "lucide-react";
 import api from "@/lib/api";
 import { useLang } from "@/lib/i18n";
 import { CoinIcon, StatusBadge, fmtUsd, fmtCrypto } from "@/components/common";
@@ -17,6 +17,7 @@ export default function Dashboard() {
   const [data, setData] = useState(null);
   const [prices, setPrices] = useState([]);
   const [range, setRange] = useState("1Т");
+  const [hideBalance, setHideBalance] = useState(false);
 
   useEffect(() => {
     api.get("/me/summary").then((r) => setData(r.data)).catch(() => {});
@@ -33,12 +34,21 @@ export default function Dashboard() {
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
-              {t("total_balance")} <Eye className="h-4 w-4" />
+              {t("total_balance")}
+              <button
+                type="button"
+                data-testid="toggle-balance"
+                onClick={() => setHideBalance((v) => !v)}
+                aria-label={hideBalance ? "Показати баланс" : "Приховати баланс"}
+                className="rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+              >
+                {hideBalance ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
             <div data-testid="total-balance" className="mt-1 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">
-              {fmtUsd(data.total_usd)}
+              {hideBalance ? "••••••" : fmtUsd(data.total_usd)}
             </div>
-            <div className="mt-1 text-sm text-slate-500">{t("available")} • {fmtUsd(data.available_usd)}</div>
+            <div className="mt-1 text-sm text-slate-500">{t("available")} • {hideBalance ? "••••••" : fmtUsd(data.available_usd)}</div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button data-testid="action-receive" onClick={() => navigate("/wallet")} className="rounded-full bg-white text-slate-800 border border-slate-200 shadow-sm hover:bg-slate-50">
