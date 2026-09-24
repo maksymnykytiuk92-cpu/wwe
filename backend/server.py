@@ -27,7 +27,7 @@ from wallet_crypto import encrypt_mnemonic, decrypt_mnemonic
 from admin_router import (
     admin_router, sec_router,
     get_platform_settings, add_to_pool, is_network_enabled, check_user_2fa,
-    deposit_fee_for,
+    deposit_fee_for, swap_fee_percent_for,
 )
 import aml as aml_mod
 import binance_prices
@@ -450,16 +450,18 @@ async def exchange(request: Request, payload: ExchangeIn):
     if payload.amount <= 0 or payload.amount > bal["balance_available"]:
         raise HTTPException(400, "Недостатньо коштів на балансі")
     usd = payload.amount * PRICES_USD[fi]
-    fee_usd = usd * 0.004  # 0.4% swap fee
+    plat = await get_platform_settings()
+    swap_pct = swap_fee_percent_for(plat, fi)  # % на валюту-джерело (тільки адмін налаштовує)
+    fee_usd = usd * (swap_pct / 100.0)
     received = (usd - fee_usd) / PRICES_USD[ti]
     await credit_balance(uid, fi, -payload.amount)
     await credit_balance(uid, ti, received)
     await add_transaction(uid, "exchange", fi, None, payload.amount, status="Done",
-                          description=f"Exchange {fi} → {ti}", usd=round(usd, 2))
+                          description=f"Exchange {fi} → {ti} (swap fee {swap_pct}%)", usd=round(usd, 2))
     tx = await add_transaction(uid, "exchange", ti, None, received, status="Done",
                                description=f"Received {ti} from {fi}")
     return {"status": True, "data": {"received": round(received, 8), "rate": round(PRICES_USD[fi]/PRICES_USD[ti], 8),
-            "fee_usd": round(fee_usd, 2), "tx": tx}}
+            "fee_usd": round(fee_usd, 2), "fee_percent": swap_pct, "tx": tx}}
 
 
 # ---------- invoices (cabinet) ----------

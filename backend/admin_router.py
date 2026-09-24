@@ -37,6 +37,11 @@ DEFAULT_PLATFORM = {
     },
     "withdrawal_fee_cabinet": 1.0,    # flat, added on top of user amount for direct-cabinet withdrawals
     "withdrawal_fee_api": 0.8,        # flat, for API-driven withdrawals (merchant integrations)
+    # per-currency swap/exchange fee in PERCENT (applied on the source currency being swapped)
+    "swap_fee_by_iso": {
+        "USDT": 0.4, "USDC": 0.4, "BTC": 0.4, "ETH": 0.4,
+        "BNB": 0.4, "TRX": 0.4, "SOL": 0.4, "LTC": 0.4,
+    },
     # pool broken down by iso -> network_id -> amount (so we know which chain the funds sit on)
     "pool_by_key": {},
     # per-chain treasury addresses (EVM taken from env TREASURY_EVM; here we store TRON/SOL/BTC/LTC + overrides)
@@ -91,6 +96,20 @@ def deposit_fee_for(settings: dict, iso: str) -> float:
         except (TypeError, ValueError):
             pass
     return float(settings.get("deposit_fee") or 0.0)
+
+
+def swap_fee_percent_for(settings: dict, iso: str) -> float:
+    """Комісія платформи при свопі (у відсотках) для конкретної валюти-джерела.
+    Якщо не задано — 0.4% за замовчуванням."""
+    iso = (iso or "").upper()
+    by = settings.get("swap_fee_by_iso") or {}
+    val = by.get(iso)
+    if val is not None:
+        try:
+            return float(val)
+        except (TypeError, ValueError):
+            pass
+    return 0.4
 
 
 async def add_to_pool(iso: str, amount: float, network_id=None):
@@ -165,6 +184,7 @@ async def _require_superadmin(request: Request) -> dict:
 class PlatformFeesIn(BaseModel):
     deposit_fee: Optional[float] = None
     deposit_fee_by_iso: Optional[dict] = None
+    swap_fee_by_iso: Optional[dict] = None
     withdrawal_fee_cabinet: Optional[float] = None
     withdrawal_fee_api: Optional[float] = None
     otp: Optional[str] = None
@@ -205,6 +225,21 @@ async def platform_fees_put(request: Request, payload: PlatformFeesIn):
                 raise HTTPException(400, "Комісія не може бути від'ємною")
             merged[iso] = fval
         patch["deposit_fee_by_iso"] = merged
+    if payload.swap_fee_by_iso is not None:
+        cur = await get_platform_settings()
+        merged = dict(cur.get("swap_fee_by_iso") or {})
+        for iso, val in payload.swap_fee_by_iso.items():
+            iso = str(iso).upper()
+            if iso not in CURRENCIES:
+                raise HTTPException(400, f"Невідома валюта: {iso}")
+            try:
+                fval = float(val)
+            except (TypeError, ValueError):
+                raise HTTPException(400, f"Некоректна комісія свопу для {iso}")
+            if fval < 0 or fval > 100:
+                raise HTTPException(400, "Комісія свопу має бути в межах 0–100%")
+            merged[iso] = fval
+        patch["swap_fee_by_iso"] = merged
     if payload.withdrawal_fee_cabinet is not None:
         if payload.withdrawal_fee_cabinet < 0:
             raise HTTPException(400, "Комісія не може бути від'ємною")
@@ -226,6 +261,7 @@ async def platform_fees_public(request: Request):
     return {"status": True, "data": {
         "deposit_fee": s["deposit_fee"],
         "deposit_fee_by_iso": s.get("deposit_fee_by_iso", {}),
+        "swap_fee_by_iso": s.get("swap_fee_by_iso", {}),
         "withdrawal_fee_cabinet": s["withdrawal_fee_cabinet"],
         "withdrawal_fee_api": s["withdrawal_fee_api"],
     }}

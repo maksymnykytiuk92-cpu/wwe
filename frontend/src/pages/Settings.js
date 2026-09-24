@@ -328,6 +328,9 @@ function PlatformTab({ user }) {
         deposit_fee_by_iso: Object.fromEntries(
           Object.entries(pf.deposit_fee_by_iso || {}).map(([k, v]) => [k, Number(v)])
         ),
+        swap_fee_by_iso: Object.fromEntries(
+          Object.entries(pf.swap_fee_by_iso || {}).map(([k, v]) => [k, Number(v)])
+        ),
         withdrawal_fee_cabinet: Number(pf.withdrawal_fee_cabinet),
         withdrawal_fee_api: Number(pf.withdrawal_fee_api),
         otp: otp || undefined,
@@ -378,6 +381,27 @@ function PlatformTab({ user }) {
                   min="0"
                   value={pf.deposit_fee_by_iso[iso]}
                   onChange={(e) => setPf({ ...pf, deposit_fee_by_iso: { ...pf.deposit_fee_by_iso, [iso]: e.target.value } })}
+                  className="rounded-xl mt-1"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div>
+          <Label className="text-slate-700 font-semibold">Комісія при свопі (обміні) — окремо для кожної валюти, у %</Label>
+          <p className="text-xs text-slate-400 mt-1 mb-3">Відсоток списується з валюти-джерела при обміні. Приклад: при 0.4% обмін 100 USDT → ETH утримає 0.4 USDT-еквіваленту комісії платформи.</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {Object.keys(pf.swap_fee_by_iso || {}).map((iso) => (
+              <div key={iso}>
+                <Label className="text-xs font-semibold text-slate-600">{iso} (%)</Label>
+                <Input
+                  data-testid={`pf-swap-${iso}`}
+                  type="number"
+                  step="any"
+                  min="0"
+                  max="100"
+                  value={pf.swap_fee_by_iso[iso]}
+                  onChange={(e) => setPf({ ...pf, swap_fee_by_iso: { ...pf.swap_fee_by_iso, [iso]: e.target.value } })}
                   className="rounded-xl mt-1"
                 />
               </div>
