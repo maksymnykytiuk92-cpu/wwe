@@ -183,3 +183,21 @@ agent_communication:
       Admin login: admin@makspay.local / admin123.
       Real keys wired: ALCHEMY_KEY, TRONGRID_KEY, ONEINCH_KEY, TREASURY_EVM. WALLET_MNEMONIC rotated to a fresh one (not shown in chat).
       Please run backend tests focused on new endpoints and behaviour changes; do not modify existing merchant/checkout flow logic.
+  - agent: "testing"
+    message: |
+      ✅ "Invalid Host header" bug verification COMPLETE - BUG IS FIXED
+      
+      Tested external URL: https://tuzsd-repo.preview.emergentagent.com
+      Test credentials: admin@tuzsd.com / admin123
+      
+      All test steps PASSED:
+      1. ✅ Login page loads without "Invalid Host header" error - all UI elements visible (MaksPAY heading, email/password fields, Увійти button)
+      2. ✅ Login successful, redirected to /dashboard
+      3. ✅ Dashboard renders correctly with sidebar ("Панель керування"), balance card ("Загальний баланс"), and chart
+      4. ✅ Wallet page ("Гаманець") loads without errors, shows balance list and transaction tabs
+      5. ✅ NO "Invalid Host header" text found anywhere in the flow
+      6. ✅ No console errors, no white screens, no blocking issues
+      
+      Minor observation: Two 401 responses on /api/auth/me (expected auth flow behavior, not a bug)
+      
+      The app now works correctly over the external preview URL. Ready for comprehensive feature testing of the 4 new features (fee settings, network toggles, 2FA, AML).
