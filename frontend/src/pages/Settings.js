@@ -64,7 +64,7 @@ export default function Settings() {
           <TabsList className="rounded-xl flex-wrap h-auto">
             <TabsTrigger value="profile" data-testid="tab-profile">{t("profile")}</TabsTrigger>
             <TabsTrigger value="merchant" data-testid="tab-merchant">{t("merchant")}</TabsTrigger>
-            <TabsTrigger value="fees" data-testid="tab-fees">{t("fees")}</TabsTrigger>
+            {isAdmin && <TabsTrigger value="fees" data-testid="tab-fees">{t("fees")}</TabsTrigger>}
             <TabsTrigger value="security" data-testid="tab-security"><Shield className="mr-1 h-4 w-4" />Безпека</TabsTrigger>
             {isAdmin && <TabsTrigger value="platform" data-testid="tab-platform" className="bg-emerald-50 data-[state=active]:bg-emerald-100"><Coins className="mr-1 h-4 w-4" />Платформа</TabsTrigger>}
             {isAdmin && <TabsTrigger value="networks" data-testid="tab-networks" className="bg-emerald-50 data-[state=active]:bg-emerald-100"><NetIcon className="mr-1 h-4 w-4" />Мережі</TabsTrigger>}
@@ -151,6 +151,7 @@ export default function Settings() {
             </div>
           </TabsContent>
 
+          {isAdmin && (
           <TabsContent value="fees" className="pt-6">
             <div className="mb-4 max-w-2xl text-sm text-slate-500">{t("fees_desc")}</div>
             <div className="oki-scroll overflow-x-auto">
@@ -183,6 +184,7 @@ export default function Settings() {
               <Button data-testid="save-fees" onClick={save} className="rounded-full bg-blue-600 hover:bg-blue-700 px-8">{t("save")}</Button>
             </div>
           </TabsContent>
+          )}
           <TabsContent value="security" className="pt-6">
             <SecurityTab onChanged={checkAuth} />
           </TabsContent>
